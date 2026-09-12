@@ -142,7 +142,12 @@ app.post('/api/centres/register', async (req, res) => {
       return res.status(400).json({ error: 'Centre ID is already registered.' });
     }
 
-    const days = operating_days || 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    let days = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    if (operating_days) {
+      days = Array.isArray(operating_days)
+        ? operating_days.map(d => String(d).trim()).filter(Boolean).join(',')
+        : String(operating_days).trim();
+    }
     const crops = supported_crops || 'Paddy,Wheat,Maize,Cotton';
     const loc = location || 'Main Market Yard';
     const contact = contact_number || '9876543210';
@@ -211,9 +216,14 @@ app.get('/api/centres/:id/operating-config', async (req, res) => {
     const centre = await getAsync(`SELECT operating_days, opening_time, closing_time FROM PROCUREMENT_CENTRES WHERE centre_id = ?`, [centre_id]);
     const exceptions = await allAsync(`SELECT id, date, reason FROM NON_OPERATIONAL_DATES WHERE centre_id = ? ORDER BY date ASC`, [centre_id]);
 
+    let opDays = centre && centre.operating_days ? centre.operating_days : 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    if (opDays === '[object Object]') {
+      opDays = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    }
+
     res.json({
       centre_id,
-      operating_days: centre ? centre.operating_days : 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
+      operating_days: opDays,
       opening_time: centre ? centre.opening_time : '09:00 AM',
       closing_time: centre ? centre.closing_time : '05:00 PM',
       non_operational_dates: exceptions
@@ -230,13 +240,26 @@ app.put('/api/centres/:id/operating-days', async (req, res) => {
     const centre_id = req.params.id;
     const { operating_days } = req.body;
 
-    if (!operating_days) {
+    if (operating_days === undefined || operating_days === null) {
       return res.status(400).json({ error: 'operating_days is required.' });
     }
 
-    await runAsync(`UPDATE PROCUREMENT_CENTRES SET operating_days = ? WHERE centre_id = ?`, [operating_days, centre_id]);
+    let formattedDays = '';
+    if (Array.isArray(operating_days)) {
+      formattedDays = operating_days.map(d => String(d).trim()).filter(Boolean).join(',');
+    } else if (typeof operating_days === 'string') {
+      formattedDays = operating_days.trim();
+    } else {
+      return res.status(400).json({ error: 'Invalid operating_days format.' });
+    }
 
-    res.json({ message: 'Operating days updated successfully.', operating_days });
+    if (!formattedDays) {
+      return res.status(400).json({ error: 'operating_days cannot be empty.' });
+    }
+
+    await runAsync(`UPDATE PROCUREMENT_CENTRES SET operating_days = ? WHERE centre_id = ?`, [formattedDays, centre_id]);
+
+    res.json({ message: 'Operating days updated successfully.', operating_days: formattedDays });
   } catch (err) {
     console.error('Update operating days error:', err);
     res.status(500).json({ error: 'Error updating operating days.' });
@@ -558,7 +581,10 @@ app.post('/api/slots/apply-schedule-range', async (req, res) => {
 
     // Fetch operational config
     const centre = await getAsync(`SELECT operating_days FROM PROCUREMENT_CENTRES WHERE centre_id = ?`, [centre_id]);
-    const opDaysStr = centre ? centre.operating_days : 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    let opDaysStr = centre && centre.operating_days ? centre.operating_days : 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    if (opDaysStr === '[object Object]') {
+      opDaysStr = 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday';
+    }
     const allowedDays = opDaysStr.split(',').map(d => d.trim().toLowerCase());
 
     const exceptions = await allAsync(`SELECT date, reason FROM NON_OPERATIONAL_DATES WHERE centre_id = ?`, [centre_id]);
@@ -654,7 +680,7 @@ app.post('/api/bookings', async (req, res) => {
 
     // 2. Validate Operational Days & Holiday Exceptions
     const centre = await getAsync(`SELECT * FROM PROCUREMENT_CENTRES WHERE centre_id = ?`, [centre_id]);
-    if (centre && centre.operating_days) {
+    if (centre && centre.operating_days && centre.operating_days !== '[object Object]') {
       const allowedDays = centre.operating_days.split(',').map(d => d.trim().toLowerCase());
       if (!allowedDays.includes(dayName.toLowerCase())) {
         return res.status(400).json({ error: `${centre.centre_name} is closed on ${dayName}s.` });

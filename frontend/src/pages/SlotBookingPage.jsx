@@ -4,12 +4,29 @@ import { Calendar, Clock, MapPin, Wheat, AlertCircle, ArrowLeft, Scale, CheckCir
 import { formatDateDisplay } from '../utils/dateUtils';
 import DateInput from '../components/DateInput';
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const parseDaysArray = (daysVal) => {
-  if (Array.isArray(daysVal)) return daysVal;
-  if (typeof daysVal === 'string' && daysVal.trim()) {
-    return daysVal.split(',').map(d => d.trim()).filter(Boolean);
+  if (daysVal === '[object Object]') {
+    return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   }
-  return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  let raw = [];
+  if (Array.isArray(daysVal)) {
+    raw = daysVal;
+  } else if (typeof daysVal === 'string' && daysVal.trim()) {
+    raw = daysVal.split(',').map(d => d.trim()).filter(Boolean);
+  } else {
+    return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  }
+
+  const matched = [];
+  for (const item of raw) {
+    const found = WEEKDAYS.find(w => w.toLowerCase() === String(item).toLowerCase());
+    if (found && !matched.includes(found)) {
+      matched.push(found);
+    }
+  }
+  return matched;
 };
 
 export default function SlotBookingPage({ user, onBookingSuccess, navigate }) {

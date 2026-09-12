@@ -188,10 +188,11 @@ export async function getOperatingConfig(centreId) {
 }
 
 export async function updateOperatingDays(centreId, operatingDays) {
+  const payload = Array.isArray(operatingDays) ? operatingDays.join(',') : operatingDays;
   const res = await fetch(`${API_BASE}/centres/${encodeURIComponent(centreId)}/operating-days`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ operating_days: operatingDays })
+    body: JSON.stringify({ operating_days: payload })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to update operating days');

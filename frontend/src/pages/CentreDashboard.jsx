@@ -133,11 +133,26 @@ export default function CentreDashboard({ user }) {
   };
 
   const parseDaysArray = (daysVal) => {
-    if (Array.isArray(daysVal)) return daysVal;
-    if (typeof daysVal === 'string' && daysVal.trim()) {
-      return daysVal.split(',').map(d => d.trim()).filter(Boolean);
+    if (daysVal === '[object Object]') {
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     }
-    return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let raw = [];
+    if (Array.isArray(daysVal)) {
+      raw = daysVal;
+    } else if (typeof daysVal === 'string' && daysVal.trim()) {
+      raw = daysVal.split(',').map(d => d.trim()).filter(Boolean);
+    } else {
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    }
+
+    const matched = [];
+    for (const item of raw) {
+      const found = WEEKDAYS.find(w => w.toLowerCase() === String(item).toLowerCase());
+      if (found && !matched.includes(found)) {
+        matched.push(found);
+      }
+    }
+    return matched;
   };
 
   const loadCentreData = () => {
@@ -210,7 +225,11 @@ export default function CentreDashboard({ user }) {
     setSuccessMsg('');
     setSavingOpDays(true);
     try {
-      await updateOperatingDays(user.user_id, operatingDays);
+      const daysToSave = parseDaysArray(operatingDays);
+      if (daysToSave.length === 0) {
+        throw new Error('Please select at least one operational day.');
+      }
+      await updateOperatingDays(user.user_id, daysToSave);
       setSuccessMsg('Operating days updated successfully!');
       loadCentreData();
     } catch (err) {
