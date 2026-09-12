@@ -424,11 +424,3 @@ BHARATAGRI focuses on a specific part of the agricultural-centre workflow:
 Rather than attempting to build the entire procurement lifecycle in one prototype, the system concentrates on making **appointment scheduling and entry management** simple and manageable for both farmers and procurement centres.
 
 ---
-
-## Team
-
-### Team Trojan Horse
-
-Built for the **Bit N Build Hackathon**.
-
----
